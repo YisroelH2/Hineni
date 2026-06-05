@@ -1,6 +1,6 @@
 /* Hineni service worker — offline support */
-const CACHE = "hineni-v2";
-const SHELL = ["./", "manifest.json", "icon-192.png", "icon-512.png"];
+const CACHE = "hineni-v3";
+const SHELL = ["./", "manifest.json", "icon-192.png", "icon-512.png", "hebcal.min.js"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
