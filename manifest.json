@@ -1,0 +1,16 @@
+{
+  "name": "Hineni — attendance",
+  "short_name": "Hineni",
+  "description": "Mark yourself present so you're never wrongly marked absent.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff6fb",
+  "theme_color": "#a51c66",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

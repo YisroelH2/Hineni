@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#a51c66">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hineni">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Hineni · attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ontime:#15c79a; --minor:#f5731f; --major:#e51c52; --absent:#1b1b22; --excused:#a51c66; --leftearly:#c4c4cc;
+    --brand:#a51c66; --brand-dark:#7c1450; --brand-light:#c83f87;
+    --ink:#33222c; --muted:#8a7682; --line:#f0d9e6; --card:#fff; --bg1:#fff6fb; --bg2:#fbe9f3;
+    --shadow:0 10px 30px -12px rgba(124,20,80,.28); --r:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:"Hanken Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+    background:radial-gradient(120% 60% at 50% -10%,var(--bg2) 0%,var(--bg1) 55%,#fffafc 100%) fixed;background-color:var(--bg1);min-height:100dvh;-webkit-font-smoothing:antialiased}
+  .app{max-width:480px;margin:0 auto;min-height:100dvh;padding:0 0 100px;position:relative}
+
+  header{position:sticky;top:0;z-index:30;background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;padding:max(14px,env(safe-area-inset-top)) 20px 14px;border-radius:0 0 26px 26px;box-shadow:var(--shadow)}
+  .hrow{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:baseline;gap:8px}
+  .brand h1{font-family:"Fraunces",serif;font-weight:600;font-size:27px;margin:0}
+  .brand .heb{font-family:"Fraunces",serif;font-weight:500;font-size:20px;opacity:.85}
+  .brand small{font-size:12.5px;opacity:.78;font-weight:500}
+  .clock{text-align:end;line-height:1.15}
+  .clock b{display:block;font-size:18px;font-weight:700}
+  .clock span{font-size:12px;opacity:.8}
+
+  .screen{padding:18px 16px 4px;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:14px;border:1px solid #fbe9f2}
+  .sec-title{font-family:"Fraunces",serif;font-weight:600;font-size:16px;color:var(--brand-dark);margin:2px 4px 10px}
+  .muted{color:var(--muted)} .center{text-align:center}
+  button{font-family:inherit;cursor:pointer;border:none}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border-radius:16px;padding:15px;font-size:16px;font-weight:700;color:#fff;transition:transform .08s,filter .15s}
+  .btn:active{transform:scale(.97)}
+  .btn-ghost{background:#fff;color:var(--brand-dark);border:1.5px solid var(--line);font-weight:600}
+  .btn-sm{padding:11px 14px;font-size:14px;border-radius:13px;width:auto}
+  .dot{width:14px;height:14px;border-radius:50%;flex:none;display:inline-block}
+  .check-circle{border-radius:50%;border:2px solid var(--excused);display:inline-flex;align-items:center;justify-content:center;flex:none;vertical-align:middle}
+  .check-circle svg{stroke:var(--excused);fill:none;stroke-width:3.5}
+  .le-wrap{position:relative;flex:none;display:inline-flex;vertical-align:middle}
+  .le-wrap>.dot,.le-wrap>.check-circle{position:static}
+  .le-badge{position:absolute;top:-3px;left:50%;transform:translateX(-50%);background:var(--brand);border-radius:50%;box-shadow:0 0 0 1.5px #fff}
+
+  .seg{display:flex;background:#f6e6ee;border-radius:13px;padding:4px;gap:4px;margin-bottom:14px}
+  .seg-btn{flex:1;padding:9px 4px;border-radius:10px;font-weight:700;font-size:12.5px;color:var(--muted);background:transparent;white-space:nowrap}
+  .seg-btn.on{background:#fff;color:var(--brand-dark);box-shadow:0 2px 8px rgba(124,20,80,.15)}
+
+  /* live mark card */
+  .live{background:linear-gradient(160deg,#fff,#fff4f9);border:1px solid #fbe2ef}
+  .live .when{font-size:13.5px;font-weight:600;color:var(--brand-light)}
+  .live .name{font-family:"Fraunces",serif;font-weight:600;font-size:30px;line-height:1.05;margin:6px 0 4px}
+  .live .meta{font-size:14px;color:var(--muted);margin-bottom:4px}
+  .late-since{font-weight:700}
+  .live .actions{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+  .late-row{display:flex;gap:10px}
+  .stepper{display:flex;align-items:center;background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow:hidden;flex:1}
+  .stepper button{width:46px;font-size:22px;font-weight:700;background:transparent;color:var(--brand)}
+  .stepper input{flex:1;text-align:center;border:none;outline:none;font-size:17px;font-weight:700;width:100%;background:transparent;color:var(--ink)}
+  .stepper .unit{padding:0 12px;font-size:13px;color:var(--muted);font-weight:600}
+  .minirow{display:flex;gap:10px}
+  .minirow .btn{padding:12px;font-size:14px;border-radius:13px}
+  .marked-chip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;background:#faf2f7;border-radius:16px;padding:14px 16px}
+  .marked-chip .lbl{font-weight:700;font-size:16px;display:flex;align-items:center;gap:9px}
+  .marked-chip .sub{font-size:12.5px;color:var(--muted)}
+  .empty{text-align:center;padding:10px 4px}
+  .empty .big{font-family:"Fraunces",serif;font-size:21px;color:var(--brand-dark);margin:6px 0 4px}
+  .next-chip{display:inline-flex;align-items:center;gap:8px;background:#faf0f6;border:1px solid var(--line);border-radius:999px;padding:9px 15px;font-weight:600;font-size:14px;color:var(--brand-dark);margin-top:8px}
+
+  /* scores / history */
+  .summary-grid{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:none}
+  .summary-grid::-webkit-scrollbar{display:none}
+  .scard{min-width:160px;flex:none;background:var(--card);border:1px solid #fbe9f2;border-radius:18px;box-shadow:var(--shadow);padding:14px}
+  .scard.overall{background:linear-gradient(160deg,var(--brand),var(--brand-dark));color:#fff;border:none}
+  .scard .nm{font-weight:700;font-size:14px;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .donut-wrap{display:flex;align-items:center;gap:12px}
+  .donut{width:64px;height:64px;border-radius:50%;flex:none;position:relative}
+  .donut::after{content:"";position:absolute;inset:17px;border-radius:50%;background:var(--card)}
+  .scard.overall .donut::after{background:var(--brand-dark)}
+  .donut .ctr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:"Fraunces",serif;font-weight:700;font-size:15px;z-index:2;line-height:1}
+  .leg{font-size:11.5px;line-height:1.5;color:var(--muted)} .scard.overall .leg{color:rgba(255,255,255,.85)}
+  .pts{font-weight:800;font-size:13px} .pts.pos{color:var(--ontime)} .pts.neg{color:var(--major)}
+  .scard.overall .pts.pos{color:#7dffd9} .scard.overall .pts.neg{color:#ff9bb3}
+
+  .day-group{margin-top:16px}
+  .day-head{display:flex;align-items:center;justify-content:space-between;margin:0 6px 8px}
+  .day-head b{font-weight:700;font-size:13px;color:var(--muted)}
+  .day-head .pie{width:22px;height:22px;border-radius:50%;position:relative}
+  .day-head .pie::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--bg1)}
+  .rec{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid #fbe9f2;border-radius:15px;padding:13px 15px;margin-bottom:8px;box-shadow:0 4px 14px -10px rgba(124,20,80,.3)}
+  .rec:active{transform:scale(.99)} .rec .nm{font-weight:700;font-size:15px;flex:1}
+  .rec .st{font-size:12.5px;font-weight:600;color:var(--muted);text-align:end}
+
+  /* schedule list */
+  .cls{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid #fbe9f2;border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 4px 14px -10px rgba(124,20,80,.3)}
+  .cls .accent{width:6px;align-self:stretch;border-radius:6px;background:var(--brand-light)}
+  .cls .nm{font-weight:700;font-size:16px} .cls .sub{font-size:13px;color:var(--muted);margin-top:2px}
+  .cls .chev{color:var(--brand-light);font-size:20px}
+
+  /* calendar */
+  .cal-row{display:flex;background:#fff;border:1px solid #fbe9f2;border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+  .cal-gutter{flex:none;width:46px;position:relative;background:#fff;border-inline-end:1px solid var(--line)}
+  .cal-gutter .hr{position:absolute;inset-inline-end:6px;font-size:10px;color:var(--muted);transform:translateY(-6px)}
+  .cal-cols{flex:1;display:flex;overflow-x:auto;scrollbar-width:none} .cal-cols::-webkit-scrollbar{display:none}
+  .cal-col{flex:1;min-width:0;border-inline-end:1px solid #f4e6ee;position:relative}
+  .cal-cols.week .cal-col{flex:0 0 92px;min-width:92px}
+  .cal-colhead{height:26px;display:flex;align-items:center;justify-content:center;background:#faf0f6;font-size:11px;font-weight:700;color:var(--brand-dark);border-bottom:1px solid var(--line)}
+  .cal-body{position:relative;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--hr) - 1px),#f3e7ee calc(var(--hr) - 1px),#f3e7ee var(--hr))}
+  .cal-block{position:absolute;inset-inline:4px;background:linear-gradient(160deg,#fbe1ef,#f8d2e6);border-inline-start:3px solid var(--brand);border-radius:9px;padding:4px 7px;overflow:hidden;cursor:pointer;box-shadow:0 2px 6px rgba(124,20,80,.18)}
+  .cal-block b{display:block;font-size:11.5px;color:var(--brand-dark);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-block span{font-size:10px;color:var(--brand-light);font-weight:600}
+  .cal-hint{text-align:center;font-size:12px;color:var(--muted);margin:10px 4px 0}
+
+  /* sheet */
+  .scrim{position:fixed;inset:0;background:rgba(40,12,28,.45);backdrop-filter:blur(2px);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s}
+  .sheet{background:#fff;width:100%;max-width:480px;border-radius:26px 26px 0 0;padding:20px 18px max(20px,env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.2);animation:rise .26s cubic-bezier(.2,.9,.3,1);max-height:88dvh;overflow-y:auto}
+  @keyframes rise{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+  .sheet h3{font-family:"Fraunces",serif;font-weight:600;font-size:20px;margin:0 0 4px;color:var(--brand-dark)}
+  .sheet .sub{color:var(--muted);font-size:13.5px;margin-bottom:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:700;color:var(--brand-dark);margin-bottom:6px}
+  .field input,.field select{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:13px;font-size:16px;font-family:inherit;color:var(--ink);background:#fffdfe;outline:none}
+  .field input:focus,.field select:focus{border-color:var(--brand-light)}
+  .row2{display:flex;gap:12px}.row2 .field{flex:1}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:9px 0;width:44px;text-align:center;border-radius:11px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:13px;color:var(--muted)}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .status-chips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .schip{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:13px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:12px;color:var(--ink);text-align:center}
+  .schip.on{border-width:2px}
+  .schip.on[data-s=ontime]{border-color:var(--ontime);background:#eafaf5}
+  .schip.on[data-s=minor]{border-color:var(--minor);background:#fff2e9}
+  .schip.on[data-s=major]{border-color:var(--major);background:#fdeaf0}
+  .schip.on[data-s=absent]{border-color:var(--absent);background:#f2f2f4}
+  .schip.on[data-s=excused]{border-color:var(--excused);background:#fbeaf3}
+  .schip.on[data-s=leftearly]{border-color:var(--leftearly);background:#f6f6f8}
+  .sheet-actions{display:flex;gap:10px;margin-top:18px;align-items:center}
+  .link-danger{color:var(--major);font-weight:700;font-size:14px;background:none;padding:8px}
+  .banner{background:#fff5d6;border:1px solid #f3e2a0;color:#7a5c12;border-radius:14px;padding:12px 14px;font-size:13.5px;font-weight:500;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+  .banner button{margin-inline-start:auto;color:#7a5c12;font-weight:800;background:none;font-size:16px}
+
+  /* settings */
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #f6e9f1}
+  .set-row:last-child{border-bottom:none}
+  .set-row .lab{font-weight:600;font-size:14.5px}.set-row .lab small{display:block;color:var(--muted);font-weight:500;font-size:12px;margin-top:2px}
+  .set-row input[type=number],.set-row input[type=text]{width:96px;padding:9px 10px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;text-align:end;font-family:inherit;color:var(--ink);background:#fffdfe;outline:none}
+  .set-row input[type=text]{width:140px;text-align:start}
+  .switch{width:48px;height:28px;border-radius:999px;background:#e6d3df;position:relative;transition:.2s;flex:none}
+  .switch.on{background:var(--brand)}
+  .switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .switch.on::after{transform:translateX(20px)}
+  [dir=rtl] .switch.on::after{transform:translateX(-20px)}
+
+  /* breakdown / gauge */
+  .bd-legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:16px 0 4px}
+  .bd-legend .li{display:flex;align-items:center;gap:8px;font-size:13px}
+  .bd-legend .li b{margin-inline-start:auto;font-weight:700}
+  .gauge{height:10px;border-radius:999px;background:linear-gradient(90deg,#e51c52,#f5731f,#15c79a);position:relative;margin:8px 0 4px}
+  .gauge .pin{position:absolute;top:-5px;width:4px;height:20px;border-radius:3px;background:#33222c;transform:translateX(-2px)}
+  .bd-stats{margin-top:14px;border-top:1px solid #f3e7ee;padding-top:6px}
+  .bd-stats .r{display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-bottom:1px dashed #f1e3ec}
+  .bd-stats .r:last-child{border-bottom:none}
+  .bd-stats .r span:first-child{color:var(--brand);font-weight:600}
+  .bd-stats .r span:last-child{font-weight:700}
+
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;max-width:480px;margin:0 auto;padding:8px 6px max(8px,env(safe-area-inset-bottom))}
+  .tab{flex:1;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:700;padding:5px 0}
+  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:var(--brand)} .tab .ind{width:18px;height:3px;border-radius:3px;background:transparent;margin-top:1px}.tab.on .ind{background:var(--brand)}
+
+  /* report */
+  #reportview{position:fixed;inset:0;z-index:90;background:#fff;overflow-y:auto;display:none;color:#222}
+  #reportview.show{display:block}
+  .rv-bar{position:sticky;top:0;display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--brand);color:#fff;padding:12px 16px}
+  .rv-bar .acts{display:flex;gap:8px}
+  .rv-bar button{background:#fff;color:var(--brand-dark);border-radius:10px;padding:8px 12px;font-weight:700;font-size:13px}
+  .rv-bar .x{background:transparent;color:#fff;font-size:20px;padding:4px 8px}
+  .rep{max-width:760px;margin:0 auto;padding:24px 22px 60px}
+  .rep h2{font-family:"Fraunces",serif;color:var(--brand);font-size:30px;margin:2px 0}
+  .rep .stu{color:var(--brand-dark);font-weight:700;font-size:14px}
+  .rep .range{color:var(--brand-light);font-size:13px}
+  .rep .note{color:var(--brand);font-size:12.5px;margin:14px 0 18px;line-height:1.5}
+  .rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 26px}
+  .rep-sub{border-bottom:1px solid var(--brand-light);padding-bottom:12px}
+  .rep-sub h4{margin:0 0 8px;color:var(--brand-dark);font-size:15px}
+  .rep-sub .body{display:flex;gap:12px;align-items:center}
+  .rep-pie{width:74px;height:74px;border-radius:50%;flex:none}
+  .rep-leg{font-size:12px;line-height:1.55;flex:1}
+  .rep-leg .li{display:flex;align-items:center;gap:7px}
+  .rep-tot{margin-top:8px;font-size:13px;font-weight:800;display:flex;justify-content:space-between}
+  .rep-foot{text-align:center;color:#aaa;font-size:11px;margin-top:30px}
+  @media (max-width:560px){.rep-grid{grid-template-columns:1fr}}
+  @media print{body>*:not(#reportview){display:none!important}#reportview{position:static;display:block}.rv-bar{display:none!important}.rep{padding-top:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="hrow">
+      <div class="brand"><h1>Hineni</h1><span class="heb">הנני</span></div>
+      <div class="clock" id="clock"><b>--:--</b><span>—</span></div>
+    </div>
+    <div class="brand" style="margin-top:2px"><small>tap in when you show up</small></div>
+  </header>
+  <main id="main"></main>
+  <nav id="nav"></nav>
+</div>
+<div id="reportview"></div>
+
+<script>
+"use strict";
+/* ===========================================================================
+   Hineni v2 — personal yeshiva attendance self-marker
+   Single file. Works in Claude (window.storage) and self-hosted (localStorage).
+   Keys: hineni_classes, hineni_marks, hineni_settings, hineni_seeded
+   =========================================================================== */
+
+/* ---- storage layer (async; both environments) ---- */
+const Store = (() => {
+  const useClaude = typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
+  return {
+    backend: useClaude ? "this app" : "this device",
+    async get(k){ if(useClaude){ try{ const r=await window.storage.get(k,false); return r?r.value:null; }catch(e){ return null; } } try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    async set(k,v){ if(useClaude){ try{ await window.storage.set(k,v,false); }catch(e){} return; } try{ localStorage.setItem(k,v); }catch(e){} }
+  };
+})();
+
+/* ---- status + points config ---- */
+const STATUS = {
+  ontime:    {label:"On time",    color:"var(--ontime)"},
+  minor:     {label:"Minor late", color:"var(--minor)"},
+  major:     {label:"Major late", color:"var(--major)"},
+  absent:    {label:"Absent",     color:"var(--absent)"},
+  excused:   {label:"Excused",    color:"var(--excused)", check:true}
+};
+const ORDER = ["ontime","minor","major","absent","excused"];
+const ATTENDED = ["ontime","minor","major"]; // counts as "Existing"
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+const DEFAULT_SETTINGS = {
+  defLen:60, defThr:30,
+  pOnTime:0.10, pAbsent:-1.00, pPerMin:-0.011, pExcused:0,
+  hebDates:false, rtl:false, studentName:"", schoolName:""
+};
+
+/* ---- state ---- */
+let settings = {...DEFAULT_SETTINGS};
+let state = { classes:[], marks:[], tab:"mark", period:"all", cFrom:"", cTo:"",
+              calMode:"list", calDay:new Date().getDay(), showBanner:false };
+let liveTimer = null;
+
+/* ---- helpers ---- */
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const $ = s => document.querySelector(s);
+const el = (t,c,h)=>{ const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dkey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const parseKey = k => { const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); };
+const tdisp = d => d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+const t12 = hhmm => { const [h,m]=hhmm.split(":").map(Number); const d=new Date(); d.setHours(h,m,0,0); return tdisp(d); };
+const hhmm = min => `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`;
+const startOfDay=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
+const endOfDay=d=>{const x=new Date(d);x.setHours(23,59,59,999);return x;};
+
+function fmtWeekday(d){ return settings.hebDates ? new Intl.DateTimeFormat("he",{weekday:"long"}).format(d) : d.toLocaleDateString(undefined,{weekday:"short"}); }
+function fmtDate(d){
+  if(settings.hebDates){ try{ return new Intl.DateTimeFormat("he",{calendar:"hebrew",day:"numeric",month:"long"}).format(d); }catch(e){} }
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+const fmtFull = d => `${fmtWeekday(d)}, ${fmtDate(d)}`;
+
+function classify(min,thr){ if(min<=0) return "ontime"; if(min<=thr) return "minor"; return "major"; }
+
+function statusDot(st,size=14,leftEarly=false){
+  const s=STATUS[st]||STATUS.ontime;
+  let base;
+  if(s.check) base=`<span class="check-circle" style="width:${size}px;height:${size}px"><svg viewBox="0 0 24 24" style="width:${Math.round(size*0.66)}px;height:${Math.round(size*0.66)}px"><path d="M20 6 9 17l-5-5"/></svg></span>`;
+  else base=`<span class="dot" style="width:${size}px;height:${size}px;background:${s.color}"></span>`;
+  if(!leftEarly) return base;
+  const d=Math.max(5,Math.round(size*0.46));
+  return `<span class="le-wrap" style="width:${size}px;height:${size}px">${base}<span class="le-badge" style="width:${d}px;height:${d}px"></span></span>`;
+}
+
+function daysLabel(days){
+  const s=[...days].sort((a,b)=>a-b); if(!s.length) return "No days";
+  const runs=[]; let st=s[0],pv=s[0];
+  for(let i=1;i<s.length;i++){ if(s[i]===pv+1)pv=s[i]; else {runs.push([st,pv]);st=s[i];pv=s[i];} }
+  runs.push([st,pv]);
+  return runs.map(([a,b])=>a===b?DOW[a]:`${DOW[a]}–${DOW[b]}`).join(", ");
+}
+const sortedClasses = () => [...state.classes].sort((a,b)=> Math.min(...a.days)-Math.min(...b.days) || a.start.localeCompare(b.start));
+
+function sessionsOn(date){
+  const dow=date.getDay();
+  return sortedClasses().filter(c=>c.days.includes(dow)).map(c=>{
+    const [h,m]=c.start.split(":").map(Number);
+    const start=new Date(date); start.setHours(h,m,0,0);
+    return {cls:c,start,end:new Date(start.getTime()+c.dur*60000)};
+  }).sort((a,b)=>a.start-b.start);
+}
+function currentContext(now){
+  const todays=sessionsOn(now);
+  const active=todays.filter(s=>now>=s.start&&now<=s.end).sort((a,b)=>b.start-a.start);
+  const next=todays.filter(s=>s.start>now).sort((a,b)=>a.start-b.start)[0]||null;
+  const recent=todays.filter(s=>now>s.end&&(now-s.end)<=90*60000).sort((a,b)=>b.end-a.end)[0]||null;
+  return {current:active[0]||null,next,recent,todays};
+}
+const getMark=(cid,key)=>state.marks.find(m=>m.classId===cid&&m.date===key);
+
+/* ---- metrics ---- */
+function countsFor(recs){ const c={ontime:0,minor:0,major:0,absent:0,excused:0}; recs.forEach(r=>{ if(c[r.status]!==undefined)c[r.status]++; }); return c; }
+function pointsFor(recs){
+  let p=0;
+  recs.forEach(r=>{
+    if(r.status==="ontime") p+=settings.pOnTime;
+    else if(r.status==="absent") p+=settings.pAbsent;
+    else if(r.status==="minor"||r.status==="major") p+=settings.pPerMin*(r.minutesLate||0);
+    else if(r.status==="excused") p+=settings.pExcused;
+  });
+  return p;
+}
+const fmtPts = p => (Math.round(p*100)/100).toString();
+function scoreFor(recs){ const W={ontime:100,minor:70,major:40,absent:0}; const sc=recs.filter(r=>r.status in W); if(!sc.length) return null; return Math.round(sc.reduce((a,r)=>a+W[r.status],0)/sc.length); }
+function donutGradient(c){
+  const tot=ORDER.reduce((s,k)=>s+c[k],0); if(!tot) return "conic-gradient(var(--leftearly) 0 100%)";
+  let acc=0; const parts=[];
+  ORDER.forEach(k=>{ const v=c[k]; if(!v) return; const a=acc/tot*100; acc+=v; parts.push(`${STATUS[k].color} ${a}% ${acc/tot*100}%`); });
+  return `conic-gradient(${parts.join(",")})`;
+}
+function periodRange(now){
+  const end=endOfDay(now);
+  switch(state.period){
+    case "today": return [startOfDay(now),end];
+    case "week":  {const s=new Date(now);s.setDate(now.getDate()-now.getDay());return [startOfDay(s),end];}
+    case "month": return [new Date(now.getFullYear(),now.getMonth(),1),end];
+    case "30":    {const s=new Date(now);s.setDate(now.getDate()-29);return [startOfDay(s),end];}
+    case "custom":return [state.cFrom?startOfDay(parseKey(state.cFrom)):new Date(0), state.cTo?endOfDay(parseKey(state.cTo)):end];
+    default: return [new Date(0),end];
+  }
+}
+function marksInPeriod(){
+  const [a,b]=periodRange(new Date()); const ak=dkey(a),bk=dkey(b);
+  return state.marks.filter(m=>m.date>=ak&&m.date<=bk);
+}
+const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(14);}catch(e){}};
+
+/* ---- persistence ---- */
+async function save(what){
+  if(!what||what==="classes") await Store.set("hineni_classes",JSON.stringify(state.classes));
+  if(!what||what==="marks")   await Store.set("hineni_marks",JSON.stringify(state.marks));
+  if(!what||what==="settings")await Store.set("hineni_settings",JSON.stringify(settings));
+}
+async function setMark(cid,key,status,min,leftEarly){
+  let m=getMark(cid,key);
+  if(m){ m.status=status; m.minutesLate=min; m.leftEarly=!!leftEarly; m.ts=Date.now(); }
+  else state.marks.push({id:uid(),classId:cid,date:key,status,minutesLate:min,leftEarly:!!leftEarly,ts:Date.now()});
+  await save("marks");
+}
+async function deleteMark(id){ state.marks=state.marks.filter(m=>m.id!==id); await save("marks"); }
+
+async function load(){
+  try{ settings={...DEFAULT_SETTINGS,...(JSON.parse(await Store.get("hineni_settings"))||{})}; }catch(e){}
+  try{ state.classes=JSON.parse(await Store.get("hineni_classes"))||[]; }catch(e){ state.classes=[]; }
+  try{ state.marks=JSON.parse(await Store.get("hineni_marks"))||[]; }catch(e){ state.marks=[]; }
+  state.marks.forEach(m=>{ if(m.status==="nomark"||m.status==="leftearly"){ m.status="ontime"; m.leftEarly=true; } }); // migrate v1/v2-early
+  const seeded=await Store.get("hineni_seeded");
+  if(!seeded && state.classes.length===0){
+    const SunThu=[0,1,2,3,4];
+    state.classes=[
+      {id:uid(),name:"Shacharis",days:SunThu,start:"07:30",dur:60,thr:30},
+      {id:uid(),name:"Chassidus Boker",days:SunThu,start:"09:15",dur:75,thr:30},
+      {id:uid(),name:"Nigleh A",days:SunThu,start:"10:45",dur:90,thr:30},
+      {id:uid(),name:"Chassidus Erev",days:SunThu,start:"20:30",dur:60,thr:30}
+    ];
+    state.showBanner=true; await save("classes"); await Store.set("hineni_seeded","1");
+  }
+}
+
+/* ===========================================================================
+   RENDER
+   =========================================================================== */
+function applyDir(){ document.documentElement.dir = settings.rtl ? "rtl" : "ltr"; }
+function render(){
+  applyDir();
+  const main=$("#main"); main.innerHTML="";
+  const s=el("div","screen");
+  ({mark:renderMark,history:renderHistory,schedule:renderSchedule,settings:renderSettings}[state.tab]||renderMark)(s);
+  main.appendChild(s); renderNav(); tickClock();
+}
+function segmented(values,labels,active,onPick){
+  const w=el("div","seg");
+  values.forEach((v,i)=>{ const b=el("button","seg-btn"+(v===active?" on":""),labels[i]); b.onclick=()=>onPick(v); w.appendChild(b); });
+  return w;
+}
+
+/* ---------- MARK ---------- */
+function renderMark(root){
+  const now=new Date();
+  const {current,next,recent,todays}=currentContext(now);
+  if(state.showBanner){
+    const b=el("div","banner",`<span>👋 These are <b>sample classes</b>. Go to <b>Schedule</b> to set your real seder times.</span>`);
+    const x=el("button",null,"✕"); x.onclick=()=>{state.showBanner=false;render();}; b.appendChild(x); root.appendChild(b);
+  }
+  const target=current||recent;
+  if(target) root.appendChild(liveCard(target,now,!!current));
+  else{
+    const c=el("div","card live"); const e=el("div","empty");
+    e.innerHTML=`<div style="font-size:40px">🕊️</div><div class="big">No class right now</div><div class="muted">Nothing scheduled at the moment.</div>`;
+    if(next) e.appendChild(el("div","next-chip",`${statusDot("ontime",10)} Next: <b style="margin-inline-start:2px">${esc(next.cls.name)}</b> · ${tdisp(next.start)}`));
+    c.appendChild(e); root.appendChild(c);
+  }
+  const other=el("button","btn btn-ghost","＋ Mark another session"); other.onclick=()=>openAddMark(now); root.appendChild(other);
+  if(todays.length){
+    root.appendChild(el("div","sec-title","Today"));
+    todays.forEach(s=>{
+      const key=dkey(s.start); const m=getMark(s.cls.id,key);
+      const row=el("div","rec");
+      const d=el("span"); d.innerHTML=m?statusDot(m.status,14,m.leftEarly):`<span class="dot" style="width:14px;height:14px;background:#d9c7d2;opacity:.6"></span>`;
+      const nm=el("div","nm",esc(s.cls.name));
+      const st=el("div","st",m?(STATUS[m.status].label+(m.minutesLate>0?` · ${m.minutesLate}m`:"")):tdisp(s.start));
+      row.append(d.firstChild,nm,st); row.onclick=()=>openMarkSheet(s.cls,key,s.start); root.appendChild(row);
+    });
+  }
+  if(!liveTimer) liveTimer=setInterval(()=>{ if(state.tab==="mark") render(); },30000);
+}
+function liveCard(target,now,isLive){
+  const {cls,start}=target; const key=dkey(start); const m=getMark(cls.id,key);
+  const mins=Math.round((now-start)/60000);
+  const c=el("div","card live");
+  c.append(el("div","when",`${fmtFull(start)} · scheduled ${tdisp(start)}`), el("div","name",esc(cls.name)));
+  if(isLive){
+    if(mins<0) c.appendChild(el("div","meta",`Starts in <b>${-mins} min</b> — you're early 🙌`));
+    else{ const col=mins<=0?"var(--ontime)":(mins<=cls.thr?"var(--minor)":"var(--major)"); c.appendChild(el("div","meta",`Started <span class="late-since" style="color:${col}">${mins} min ago</span>`)); }
+  } else c.appendChild(el("div","meta","Just ended — did you make it?"));
+
+  if(m){
+    const chip=el("div","marked-chip");
+    chip.innerHTML=`<div><div class="lbl">${statusDot(m.status,14,m.leftEarly)}${STATUS[m.status].label}${m.leftEarly?" · left early":""}${m.minutesLate>0?` <span class="muted" style="font-weight:600">(${m.minutesLate} min)</span>`:""}</div><div class="sub">Marked ✓ — tap to change</div></div>`;
+    const b=el("button","btn-sm btn-ghost","Change"); chip.appendChild(b); chip.onclick=()=>openMarkSheet(cls,key,start); c.appendChild(chip);
+  }else{
+    const A=el("div","actions");
+    const ot=el("button","btn"); ot.style.background="var(--ontime)"; ot.innerHTML="✓ &nbsp;On time";
+    ot.onclick=async()=>{ await setMark(cls.id,key,"ontime",0); buzz(); flash("On time ✓","var(--ontime)"); render(); };
+    A.appendChild(ot);
+    const lr=el("div","late-row"); const sp=el("div","stepper");
+    const minus=el("button",null,"−"), inp=el("input"), unit=el("span","unit","min late"), plus=el("button",null,"+");
+    inp.type="number"; inp.value=Math.max(0,mins); inp.min=0; inp.inputMode="numeric";
+    minus.onclick=()=>inp.value=Math.max(0,(parseInt(inp.value)||0)-5);
+    plus.onclick=()=>inp.value=(parseInt(inp.value)||0)+5;
+    sp.append(minus,inp,unit,plus);
+    const lb=el("button","btn"); lb.style.cssText="flex:0 0 auto;width:auto;padding:0 18px;background:var(--minor)"; lb.textContent="Late";
+    const recolor=()=>{ lb.style.background=(parseInt(inp.value)||0)>cls.thr?"var(--major)":"var(--minor)"; };
+    inp.oninput=recolor; recolor();
+    lb.onclick=async()=>{ const v=Math.max(0,parseInt(inp.value)||0); const st=classify(v,cls.thr); await setMark(cls.id,key,st,v); buzz(); flash(`${STATUS[st].label} (${v}m)`,STATUS[st].color); render(); };
+    lr.append(sp,lb); A.appendChild(lr);
+    const mr=el("div","minirow");
+    const ab=el("button","btn"); ab.style.background="var(--absent)"; ab.textContent="Absent";
+    ab.onclick=async()=>{ await setMark(cls.id,key,"absent",0); buzz(); flash("Absent","var(--absent)"); render(); };
+    const more=el("button","btn btn-ghost"); more.textContent="Other…"; more.onclick=()=>openMarkSheet(cls,key,start);
+    mr.append(ab,more); A.appendChild(mr); c.appendChild(A);
+  }
+  return c;
+}
+
+/* ---------- HISTORY ---------- */
+function renderHistory(root){
+  root.appendChild(segmented(["all","week","month","30","today","custom"],["All","Week","Month","30d","Today","Custom"],state.period,p=>{ if(p==="custom"){openCustomRange();return;} state.period=p; render(); }));
+  const recs=marksInPeriod();
+
+  // scores
+  const head=el("div","day-head"); head.appendChild(el("b",null,"SCORES")); head.querySelector("b").style.fontSize="13px";
+  root.appendChild(el("div","sec-title","Scores"));
+  const grid=el("div","summary-grid");
+  grid.appendChild(summaryCard("Overall",recs,true));
+  sortedClasses().forEach(c=>{ const r=recs.filter(m=>m.classId===c.id); if(r.length) grid.appendChild(summaryCard(c.name,r,false,c.id)); });
+  if(grid.children.length===0) grid.appendChild(el("div","scard center muted","No data in this period"));
+  root.appendChild(grid);
+
+  const rep=el("button","btn btn-ghost","📄 Report card"); rep.style.marginTop="6px"; rep.onclick=openReport; root.appendChild(rep);
+  const add=el("button","btn btn-ghost","＋ Mark a past session"); add.style.marginTop="10px"; add.onclick=()=>openAddMark(new Date()); root.appendChild(add);
+
+  // log
+  root.appendChild(el("div","sec-title","History"));
+  if(!recs.length){ root.appendChild(el("div","card center muted","No marks in this period.")); return; }
+  const byDay={}; [...recs].sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts).forEach(m=>{ (byDay[m.date] ||= []).push(m); });
+  Object.keys(byDay).sort((a,b)=>b.localeCompare(a)).forEach(key=>{
+    const dayRecs=byDay[key]; const g=el("div","day-group");
+    const dh=el("div","day-head");
+    dh.appendChild(el("b",null,fmtFull(parseKey(key)).toUpperCase()));
+    const pie=el("div","pie"); pie.style.background=donutGradient(countsFor(dayRecs)); dh.appendChild(pie);
+    dh.style.cursor="pointer"; dh.onclick=()=>openBreakdown(fmtFull(parseKey(key)),dayRecs);
+    g.appendChild(dh);
+    dayRecs.forEach(m=>{
+      const cls=state.classes.find(c=>c.id===m.classId); const row=el("div","rec");
+      const d=el("span"); d.innerHTML=statusDot(m.status,14,m.leftEarly);
+      const nm=el("div","nm",cls?esc(cls.name):"(deleted class)");
+      const st=el("div","st",STATUS[m.status].label+(m.minutesLate>0?` · ${m.minutesLate}m`:"")+(m.leftEarly?" · left early":""));
+      row.append(d.firstChild,nm,st); row.onclick=()=>{ if(cls) openMarkSheet(cls,key,null,m); }; g.appendChild(row);
+    });
+    root.appendChild(g);
+  });
+}
+function summaryCard(name,recs,overall,cid){
+  const card=el("div","scard"+(overall?" overall":"")); card.appendChild(el("div","nm",esc(name)));
+  const counts=countsFor(recs); const wrap=el("div","donut-wrap");
+  const donut=el("div","donut"); donut.style.background=donutGradient(counts);
+  const sc=scoreFor(recs); donut.appendChild(el("div","ctr",sc==null?"—":sc));
+  const pts=pointsFor(recs);
+  const leg=el("div","leg");
+  leg.innerHTML = ORDER.filter(k=>counts[k]).map(k=>`<div>${statusDot(k,8)} <b>${counts[k]}</b> ${STATUS[k].label.toLowerCase()}</div>`).join("")
+    + `<div class="pts ${pts>=0?"pos":"neg"}" style="margin-top:5px">${pts>=0?"+":""}${fmtPts(pts)} pts</div>`;
+  wrap.append(donut,leg); card.appendChild(wrap);
+  card.style.cursor="pointer"; card.onclick=()=>openBreakdown(name,recs);
+  return card;
+}
+
+/* ---------- SCHEDULE ---------- */
+const CAL={START:6*60,END:23*60,PX:0.9};
+function renderSchedule(root){
+  root.appendChild(segmented(["list","day","week"],["List","Day","Week"],state.calMode,m=>{state.calMode=m;render();}));
+  if(state.calMode==="list"){ renderClassList(root); return; }
+  if(state.calMode==="day"){
+    const chips=el("div","chips"); chips.style.marginBottom="12px";
+    DOW.forEach((d,i)=>{ const c=el("button","chip"+(i===state.calDay?" on":""),d); c.onclick=()=>{state.calDay=i;render();}; chips.appendChild(c); });
+    root.appendChild(chips);
+  }
+  root.appendChild(calendarEl(state.calMode==="day"?[state.calDay]:[0,1,2,3,4,5,6], state.calMode==="week"));
+  root.appendChild(el("div","cal-hint","Tap a class to edit · tap an empty slot to add"));
+}
+function renderClassList(root){
+  if(!state.classes.length) root.appendChild(el("div","card center muted","No classes yet. Add your first one below."));
+  sortedClasses().forEach(c=>{
+    const row=el("div","cls"); row.append(el("div","accent"));
+    const body=el("div"); body.style.flex="1";
+    body.appendChild(el("div","nm",esc(c.name)));
+    body.appendChild(el("div","sub",`${daysLabel(c.days)} · ${t12(c.start)} · ${c.dur} min · late >${c.thr}m`));
+    row.append(body,el("div","chev","›")); row.onclick=()=>openClassForm(c); root.appendChild(row);
+  });
+  const add=el("button","btn"); add.style.background="var(--brand)"; add.textContent="＋ Add a class"; add.onclick=()=>openClassForm(null); root.appendChild(add);
+  root.appendChild(el("div","muted center",`<div style="font-size:12.5px;margin-top:14px;line-height:1.5">Classes auto-sort by day & time.<br>Different Friday/Shabbos time? Add a separate entry.</div>`));
+}
+function calendarEl(days,week){
+  const H=(CAL.END-CAL.START)*CAL.PX;
+  const rowEl=el("div","cal-row");
+  const gut=el("div","cal-gutter"); gut.style.height=(week?26:0)+H+"px";
+  for(let m=CAL.START;m<=CAL.END;m+=60){ const l=el("div","hr",t12(hhmm(m))); l.style.top=((week?26:0)+(m-CAL.START)*CAL.PX)+"px"; gut.appendChild(l); }
+  const cols=el("div","cal-cols"+(week?" week":"")); 
+  days.forEach(dow=>{
+    const col=el("div","cal-col");
+    if(week) col.appendChild(el("div","cal-colhead",DOW[dow]));
+    const body=el("div","cal-body"); body.style.height=H+"px"; body.style.setProperty("--hr",(60*CAL.PX)+"px");
+    sortedClasses().filter(c=>c.days.includes(dow)).forEach(c=>{
+      const [h,mm]=c.start.split(":").map(Number); const sMin=h*60+mm;
+      const b=el("div","cal-block"); b.style.top=Math.max(0,(sMin-CAL.START)*CAL.PX)+"px"; b.style.height=Math.max(18,c.dur*CAL.PX)+"px";
+      b.innerHTML=`<b>${esc(c.name)}</b><span>${t12(c.start)}</span>`;
+      b.onclick=ev=>{ ev.stopPropagation(); openClassForm(c); }; body.appendChild(b);
+    });
+    body.onclick=ev=>{ if(ev.target!==body) return; const min=clamp(CAL.START+Math.round((ev.offsetY/CAL.PX)/15)*15,CAL.START,CAL.END-15); openClassForm(null,{day:dow,start:hhmm(min)}); };
+    col.appendChild(body); cols.appendChild(col);
+  });
+  rowEl.append(gut,cols); return rowEl;
+}
+
+/* ---------- SETTINGS ---------- */
+function renderSettings(root){
+  root.appendChild(el("div","sec-title","Defaults for new classes"));
+  const c1=el("div","card");
+  c1.appendChild(numRow("Default class length","minutes","defLen"));
+  c1.appendChild(numRow("Default minor-late cutoff","over this = major late","defThr"));
+  root.appendChild(c1);
+
+  root.appendChild(el("div","sec-title","Points system"));
+  const c2=el("div","card");
+  c2.appendChild(numRow("On time","credit per session","pOnTime",0.01));
+  c2.appendChild(numRow("Absent","points per absence","pAbsent",0.01));
+  c2.appendChild(numRow("Per minute late","points × minutes late","pPerMin",0.001));
+  c2.appendChild(numRow("Excused","points","pExcused",0.01));
+  const reset=el("button","btn-sm btn-ghost","Reset to talmid.plus values"); reset.style.marginTop="10px";
+  reset.onclick=async()=>{ Object.assign(settings,{pOnTime:0.10,pAbsent:-1.00,pPerMin:-0.011,pExcused:0}); await save("settings"); render(); };
+  c2.appendChild(reset);
+  c2.appendChild(el("div","muted",`<div style="font-size:12px;margin-top:10px;line-height:1.5">Minor/major is only a visual label from your cutoff — the deduction is minutes × the per-minute value, just like talmid.plus.</div>`));
+  root.appendChild(c2);
+
+  root.appendChild(el("div","sec-title","Display"));
+  const c3=el("div","card");
+  c3.appendChild(toggleRow("Hebrew dates","show dates in Hebrew calendar","hebDates"));
+  c3.appendChild(toggleRow("Right-to-left layout","Hebrew reading direction","rtl"));
+  root.appendChild(c3);
+
+  root.appendChild(el("div","sec-title","Report card"));
+  const c4=el("div","card");
+  c4.appendChild(textRow("Student name","studentName","e.g. Yisroel H."));
+  c4.appendChild(textRow("School name","schoolName","e.g. Oholei Torah"));
+  root.appendChild(c4);
+
+  root.appendChild(el("div","sec-title","Backup & data"));
+  const c5=el("div","card");
+  const exp=el("button","btn btn-ghost","⬇ Export backup (.json)"); exp.style.marginBottom="10px"; exp.onclick=exportData;
+  const imp=el("button","btn btn-ghost","⬆ Import backup"); imp.onclick=importData;
+  c5.append(exp,imp);
+  c5.appendChild(el("div","muted",`<div style="font-size:12.5px;margin-top:12px;line-height:1.5">Data lives on <b>${Store.backend}</b>. Export now and then so nothing's lost.</div>`));
+  root.appendChild(c5);
+
+  const ab=el("div","card");
+  ab.innerHTML=`<div style="font-family:'Fraunces',serif;font-size:18px;color:var(--brand-dark)">Hineni · הנני</div><div class="muted" style="font-size:13.5px;margin-top:4px;line-height:1.55">"Here I am." So you're never marked absent when you actually showed up.</div>`;
+  root.appendChild(ab);
+  const reset2=el("button","link-danger","Reset everything"); reset2.style.cssText="display:block;margin:6px auto";
+  reset2.onclick=async()=>{ if(confirm("Delete all classes and marks?")){ state.classes=[];state.marks=[]; await save(); await Store.set("hineni_seeded","1"); render(); } };
+  root.appendChild(reset2);
+}
+function numRow(label,sub,key,step){
+  const r=el("div","set-row"); r.innerHTML=`<div class="lab">${label}<small>${sub}</small></div>`;
+  const i=el("input"); i.type="number"; i.value=settings[key]; if(step)i.step=step; i.inputMode="decimal";
+  i.onchange=async()=>{ const v=parseFloat(i.value); if(!isNaN(v)){ settings[key]=v; await save("settings"); } };
+  r.appendChild(i); return r;
+}
+function textRow(label,key,ph){
+  const r=el("div","set-row"); r.innerHTML=`<div class="lab">${label}</div>`;
+  const i=el("input"); i.type="text"; i.value=settings[key]||""; i.placeholder=ph||"";
+  i.onchange=async()=>{ settings[key]=i.value.trim(); await save("settings"); };
+  r.appendChild(i); return r;
+}
+function toggleRow(label,sub,key){
+  const r=el("div","set-row"); r.innerHTML=`<div class="lab">${label}<small>${sub}</small></div>`;
+  const sw=el("div","switch"+(settings[key]?" on":"")); sw.onclick=async()=>{ settings[key]=!settings[key]; await save("settings"); render(); };
+  r.appendChild(sw); return r;
+}
+
+/* ===========================================================================
+   SHEETS / MODALS
+   =========================================================================== */
+function openSheet(build){ closeSheet(); const sc=el("div","scrim"); sc.id="scrim"; const sh=el("div","sheet"); sc.appendChild(sh);
+  sc.addEventListener("click",e=>{ if(e.target===sc) closeSheet(); }); document.body.appendChild(sc); build(sh); }
+function closeSheet(){ const s=$("#scrim"); if(s) s.remove(); }
+
+function statusPicker(initial,onChange){
+  const wrap=el("div"); const chips=el("div","status-chips");
+  ORDER.forEach(k=>{ const ch=el("button","schip"+(k===initial?" on":"")); ch.dataset.s=k;
+    ch.innerHTML=`${statusDot(k,18)}<span>${STATUS[k].label}</span>`;
+    ch.onclick=()=>{ chips.querySelectorAll(".schip").forEach(x=>x.classList.toggle("on",x.dataset.s===k)); onChange(k); };
+    chips.appendChild(ch); });
+  wrap.appendChild(chips); return wrap;
+}
+function openMarkSheet(cls,key,startDate,existing){
+  const m=existing||getMark(cls.id,key); let status=m?m.status:"ontime"; let minutes=m?(m.minutesLate||0):0; let leftEarly=m?!!m.leftEarly:false;
+  const isPresent=k=>k==="ontime"||k==="minor"||k==="major";
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,esc(cls.name)));
+    sh.appendChild(el("div","sub",`${fmtFull(parseKey(key))}${startDate?` · scheduled ${tdisp(startDate)}`:""}`));
+    const minWrap=el("div","field"); minWrap.style.cssText="margin-top:14px;display:"+((status==="minor"||status==="major")?"block":"none");
+    minWrap.innerHTML=`<label>Minutes late</label>`;
+    const minInput=el("input"); minInput.type="number"; minInput.min=0; minInput.value=minutes; minInput.inputMode="numeric";
+    minInput.oninput=()=>minutes=Math.max(0,parseInt(minInput.value)||0); minWrap.appendChild(minInput);
+    const leRow=el("div","set-row"); leRow.style.borderBottom="none"; leRow.innerHTML=`<div class="lab" style="display:flex;align-items:center;gap:8px">${statusDot("ontime",14,true)} Left early<small>keeps the mark, adds a dot on top</small></div>`;
+    const leSw=el("div","switch"+(leftEarly?" on":"")); leSw.onclick=()=>{ leftEarly=!leftEarly; leSw.classList.toggle("on",leftEarly); }; leRow.appendChild(leSw);
+    const syncLE=k=>{ const show=isPresent(k); leRow.style.display=show?"flex":"none"; if(!show){ leftEarly=false; leSw.classList.remove("on"); } };
+    sh.appendChild(statusPicker(status,k=>{ status=k; if(k!=="minor"&&k!=="major"){minutes=0;} minWrap.style.display=(k==="minor"||k==="major")?"block":"none"; minInput.value=minutes; syncLE(k); }));
+    sh.appendChild(minWrap); sh.appendChild(leRow); syncLE(status);
+    const A=el("div","sheet-actions");
+    if(m){ const del=el("button","link-danger","Delete"); del.onclick=async()=>{ await deleteMark(m.id); closeSheet(); render(); }; A.appendChild(del); }
+    const sp=el("div"); sp.style.flex="1"; A.appendChild(sp);
+    const cn=el("button","btn-sm btn-ghost","Cancel"); cn.onclick=closeSheet;
+    const sv=el("button","btn-sm"); sv.style.cssText="background:var(--brand);color:#fff"; sv.textContent="Save";
+    sv.onclick=async()=>{ const mn=(status==="minor"||status==="major")?minutes:0; await setMark(cls.id,key,status,mn,isPresent(status)&&leftEarly); buzz(); closeSheet(); render(); };
+    A.append(cn,sv); sh.appendChild(A);
+  });
+}
+function openAddMark(now){
+  if(!state.classes.length){ flash("Add a class first","var(--minor)"); state.tab="schedule"; render(); return; }
+  let dateKey=dkey(now), classId=sortedClasses()[0].id, status="ontime", minutes=0, leftEarly=false;
+  const isPresent=k=>k==="ontime"||k==="minor"||k==="major";
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,"Mark a session"));
+    sh.appendChild(el("div","sub","Pick the day and class, then the status."));
+    const fd=el("div","field"); fd.innerHTML=`<label>Date</label>`; const dInp=el("input"); dInp.type="date"; dInp.value=dateKey; fd.appendChild(dInp); sh.appendChild(fd);
+    const fc=el("div","field"); fc.innerHTML=`<label>Class</label>`; const sel=el("select"); fc.appendChild(sel); sh.appendChild(fc);
+    function refresh(){ const dow=parseKey(dateKey).getDay(); const sch=sortedClasses().filter(c=>c.days.includes(dow)); const list=sch.length?sch:sortedClasses();
+      sel.innerHTML=""; list.forEach(c=>{ const o=el("option"); o.value=c.id; o.textContent=`${c.name} (${t12(c.start)})`; sel.appendChild(o); }); classId=list[0].id; }
+    dInp.onchange=()=>{ dateKey=dInp.value; refresh(); }; sel.onchange=()=>classId=sel.value; refresh();
+    const minWrap=el("div","field"); minWrap.style.cssText="margin-top:6px;display:none"; minWrap.innerHTML=`<label>Minutes late</label>`;
+    const minInput=el("input"); minInput.type="number"; minInput.min=0; minInput.value=0; minInput.inputMode="numeric"; minInput.oninput=()=>minutes=Math.max(0,parseInt(minInput.value)||0); minWrap.appendChild(minInput);
+    const leRow=el("div","set-row"); leRow.style.borderBottom="none"; leRow.innerHTML=`<div class="lab" style="display:flex;align-items:center;gap:8px">${statusDot("ontime",14,true)} Left early<small>keeps the mark, adds a dot on top</small></div>`;
+    const leSw=el("div","switch"); leSw.onclick=()=>{ leftEarly=!leftEarly; leSw.classList.toggle("on",leftEarly); }; leRow.appendChild(leSw);
+    const syncLE=k=>{ const show=isPresent(k); leRow.style.display=show?"flex":"none"; if(!show){ leftEarly=false; leSw.classList.remove("on"); } };
+    sh.appendChild(statusPicker("ontime",k=>{ status=k; minWrap.style.display=(k==="minor"||k==="major")?"block":"none"; syncLE(k); }));
+    sh.appendChild(minWrap); sh.appendChild(leRow); syncLE(status);
+    const A=el("div","sheet-actions"); const sp=el("div"); sp.style.flex="1";
+    const cn=el("button","btn-sm btn-ghost","Cancel"); cn.onclick=closeSheet;
+    const sv=el("button","btn-sm"); sv.style.cssText="background:var(--brand);color:#fff"; sv.textContent="Save";
+    sv.onclick=async()=>{ const mn=(status==="minor"||status==="major")?minutes:0; await setMark(classId,dateKey,status,mn,isPresent(status)&&leftEarly); buzz(); closeSheet(); render(); };
+    A.append(sp,cn,sv); sh.appendChild(A);
+  });
+}
+function openClassForm(existing,prefill){
+  const c=existing||{name:"",days:prefill?[prefill.day]:[0,1,2,3,4],start:prefill?prefill.start:"09:00",dur:settings.defLen,thr:settings.defThr};
+  let days=[...c.days];
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,existing?"Edit class":"New class"));
+    const fn=el("div","field"); fn.innerHTML=`<label>Name</label>`; const name=el("input"); name.type="text"; name.value=c.name; name.placeholder="e.g. Chassidus Boker"; fn.appendChild(name); sh.appendChild(fn);
+    const fdays=el("div","field"); fdays.innerHTML=`<label>Days</label>`; const chips=el("div","chips");
+    DOW.forEach((d,i)=>{ const ch=el("button","chip"+(days.includes(i)?" on":""),d); ch.onclick=()=>{ days=days.includes(i)?days.filter(x=>x!==i):[...days,i]; ch.classList.toggle("on"); }; chips.appendChild(ch); });
+    fdays.appendChild(chips); sh.appendChild(fdays);
+    const r=el("div","row2");
+    const fs=el("div","field"); fs.innerHTML=`<label>Start time</label>`; const start=el("input"); start.type="time"; start.value=c.start; fs.appendChild(start);
+    const fdur=el("div","field"); fdur.innerHTML=`<label>Length (min)</label>`; const dur=el("input"); dur.type="number"; dur.min=5; dur.value=c.dur; dur.inputMode="numeric"; fdur.appendChild(dur);
+    r.append(fs,fdur); sh.appendChild(r);
+    const fthr=el("div","field"); fthr.innerHTML=`<label>Minor-late cutoff (min)</label>`; const thr=el("input"); thr.type="number"; thr.min=0; thr.value=c.thr; thr.inputMode="numeric"; fthr.appendChild(thr); sh.appendChild(fthr);
+    const A=el("div","sheet-actions");
+    if(existing){ const del=el("button","link-danger","Delete"); del.onclick=async()=>{ if(confirm("Delete this class? Past marks stay in history.")){ state.classes=state.classes.filter(x=>x.id!==existing.id); await save("classes"); closeSheet(); render(); } }; A.appendChild(del); }
+    const sp=el("div"); sp.style.flex="1"; A.appendChild(sp);
+    const cn=el("button","btn-sm btn-ghost","Cancel"); cn.onclick=closeSheet;
+    const sv=el("button","btn-sm"); sv.style.cssText="background:var(--brand);color:#fff"; sv.textContent="Save";
+    sv.onclick=async()=>{ const nm=name.value.trim(); if(!nm){name.focus();return;} if(!days.length){flash("Pick at least one day","var(--minor)");return;}
+      const data={id:existing?existing.id:uid(),name:nm,days:[...days].sort((a,b)=>a-b),start:start.value,dur:Math.max(5,parseInt(dur.value)||60),thr:Math.max(0,parseInt(thr.value)||30)};
+      if(existing){ state.classes[state.classes.findIndex(x=>x.id===existing.id)]=data; } else state.classes.push(data);
+      await save("classes"); closeSheet(); render(); };
+    A.append(cn,sv); sh.appendChild(A);
+    if(!existing) setTimeout(()=>name.focus(),80);
+  });
+}
+function openCustomRange(){
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,"Custom range"));
+    const f1=el("div","field"); f1.innerHTML=`<label>From</label>`; const a=el("input"); a.type="date"; a.value=state.cFrom||dkey(new Date()); f1.appendChild(a); sh.appendChild(f1);
+    const f2=el("div","field"); f2.innerHTML=`<label>To</label>`; const b=el("input"); b.type="date"; b.value=state.cTo||dkey(new Date()); f2.appendChild(b); sh.appendChild(f2);
+    const A=el("div","sheet-actions"); const sp=el("div"); sp.style.flex="1";
+    const cn=el("button","btn-sm btn-ghost","Cancel"); cn.onclick=closeSheet;
+    const sv=el("button","btn-sm"); sv.style.cssText="background:var(--brand);color:#fff"; sv.textContent="Apply";
+    sv.onclick=()=>{ state.cFrom=a.value; state.cTo=b.value; state.period="custom"; closeSheet(); render(); };
+    A.append(sp,cn,sv); sh.appendChild(A);
+  });
+}
+function openBreakdown(title,recs){
+  const counts=countsFor(recs); const tot=ORDER.reduce((s,k)=>s+counts[k],0);
+  const attended=ATTENDED.reduce((s,k)=>s+counts[k],0);
+  const leCount=recs.filter(r=>r.leftEarly).length;
+  const pts=pointsFor(recs); const sc=scoreFor(recs);
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,"Breakdown")); sh.appendChild(el("div","sub",esc(title)));
+    const wrap=el("div"); wrap.style.cssText="display:flex;justify-content:center;margin:4px 0 6px";
+    const donut=el("div","donut"); donut.style.cssText="width:150px;height:150px;background:"+donutGradient(counts);
+    donut.style.setProperty("--xx",""); // noop
+    wrap.appendChild(donut); sh.appendChild(wrap);
+    const leg=el("div","bd-legend");
+    leg.innerHTML=ORDER.filter(k=>counts[k]).map(k=>`<div class="li">${statusDot(k,12)} ${STATUS[k].label} <b>${counts[k]} (${tot?Math.round(counts[k]/tot*100):0}%)</b></div>`).join("");
+    sh.appendChild(leg);
+    if(sc!=null){ const g=el("div","gauge"); const pin=el("div","pin"); pin.style.insetInlineStart=sc+"%"; g.appendChild(pin); sh.appendChild(el("div",null,`<div style="font-size:12px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between"><span>Attendance score</span><b style="color:var(--ink)">${sc}/100</b></div>`)); sh.appendChild(g); }
+    const stats=el("div","bd-stats");
+    stats.innerHTML=`
+      <div class="r"><span>Total entries</span><span>${tot}</span></div>
+      <div class="r"><span>Attended (existing)</span><span>${attended} (${tot?Math.round(attended/tot*100):0}%)</span></div>
+      <div class="r"><span>Absences</span><span>${counts.absent}</span></div>
+      <div class="r"><span>Lates (min/maj)</span><span>${counts.minor + counts.major}</span></div>
+      <div class="r"><span>Excused</span><span>${counts.excused}</span></div>
+      <div class="r"><span>Left early</span><span>${leCount}</span></div>
+      <div class="r"><span>Total points</span><span class="pts ${pts>=0?"pos":"neg"}">${pts>=0?"+":""}${fmtPts(pts)}</span></div>`;
+    sh.appendChild(stats);
+    const cls=el("button","btn btn-ghost","Close"); cls.style.marginTop="16px"; cls.onclick=closeSheet; sh.appendChild(cls);
+  });
+}
+
+/* ---------- REPORT CARD ---------- */
+function repPie(counts){
+  const tot=ORDER.reduce((s,k)=>s+counts[k],0); if(!tot) return "#eee";
+  let acc=0; const parts=[];
+  ORDER.forEach(k=>{ const v=counts[k]; if(!v) return; const a=acc/tot*100; acc+=v; const col=getComputedStyle(document.documentElement).getPropertyValue(STATUS[k].color.replace("var(","").replace(")","")).trim(); parts.push(`${col} ${a}% ${acc/tot*100}%`); });
+  return `conic-gradient(${parts.join(",")})`;
+}
+function openReport(){
+  const recs=marksInPeriod();
+  const rv=$("#reportview");
+  const subjects=sortedClasses().map(c=>({c,recs:recs.filter(m=>m.classId===c.id)})).filter(s=>s.recs.length);
+  const periodLabel={all:"Full history",today:"Today",week:"This week",month:"This month","30":"Last 30 days",custom:`${state.cFrom||"…"} → ${state.cTo||"…"}`}[state.period]||"";
+  const expl="Totals in green are credits for good attendance. Totals in red are points deducted for absences and lateness.";
+  let body=subjects.map(s=>{
+    const counts=countsFor(s.recs); const pts=pointsFor(s.recs);
+    const leg=ORDER.filter(k=>counts[k]).map(k=>`<div class="li">${statusDot(k,11)} ${counts[k]} ${STATUS[k].label.toLowerCase()} (${Math.round(counts[k]/s.recs.length*100)}%)</div>`).join("");
+    return `<div class="rep-sub"><h4>${esc(s.c.name)}</h4><div class="body"><div class="rep-pie" style="background:${repPie(counts)}"></div><div class="rep-leg">${leg}</div></div>
+      <div class="rep-tot"><span>Total points</span><span style="color:${pts>=0?'#0f9e7a':'#d11447'}">${pts>=0?"+":""}${fmtPts(pts)}</span></div></div>`;
+  }).join("");
+  if(!subjects.length) body=`<div style="color:#999;text-align:center;padding:40px">No attendance data in this period.</div>`;
+  rv.innerHTML=`
+    <div class="rv-bar"><div style="font-weight:700">Report card</div><div class="acts"><button onclick="window.print()">🖨 Print / PDF</button><button id="rvMail">✉ Email</button><button class="x" id="rvClose">✕</button></div></div>
+    <div class="rep">
+      ${settings.schoolName?`<div style="text-align:center;color:var(--brand-light);font-weight:700;font-size:13px;margin-bottom:6px">${esc(settings.schoolName)}</div>`:""}
+      ${settings.studentName?`<div class="stu">Student: ${esc(settings.studentName)}</div>`:""}
+      <h2>Attendance</h2>
+      <div class="range">${esc(periodLabel)}</div>
+      <div class="note">${expl}</div>
+      <div class="rep-grid">${body}</div>
+      <div class="rep-foot">Made with Hineni · הנני</div>
+    </div>`;
+  rv.classList.add("show");
+  $("#rvClose").onclick=()=>rv.classList.remove("show");
+  $("#rvMail").onclick=()=>{
+    const lines=subjects.map(s=>`${s.c.name}: ${fmtPts(pointsFor(s.recs))} pts`).join("\n");
+    const subj=encodeURIComponent(`Attendance report${settings.studentName?` — ${settings.studentName}`:""}`);
+    const bd=encodeURIComponent(`${periodLabel}\n\n${lines}\n\nMade with Hineni`);
+    location.href=`mailto:?subject=${subj}&body=${bd}`;
+  };
+}
+
+/* ---------- backup: export / import ---------- */
+function exportData(){
+  try{
+    const data={app:"hineni",version:2,exportedAt:new Date().toISOString(),settings,classes:state.classes,marks:state.marks};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=`hineni-backup-${dkey(new Date())}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    flash("Backup downloaded","var(--ontime)");
+  }catch(e){ alert("Couldn't create the backup file here. This works when the app is hosted (e.g. GitHub Pages)."); }
+}
+function importData(){
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="application/json,.json";
+  inp.onchange=()=>{
+    const f=inp.files&&inp.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=async()=>{
+      try{
+        const d=JSON.parse(r.result);
+        if(!d || (!Array.isArray(d.classes)&&!Array.isArray(d.marks))) throw new Error("bad");
+        if(!confirm("Replace your current classes, marks and settings with this backup?")) return;
+        if(d.settings) settings={...DEFAULT_SETTINGS,...d.settings};
+        state.classes=Array.isArray(d.classes)?d.classes:[];
+        state.marks=Array.isArray(d.marks)?d.marks:[];
+        state.marks.forEach(m=>{ if(m.status==="nomark"||m.status==="leftearly"){ m.status="ontime"; m.leftEarly=true; } });
+        await save(); await Store.set("hineni_seeded","1"); render(); flash("Backup restored","var(--ontime)");
+      }catch(e){ alert("That doesn't look like a Hineni backup file."); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+/* ---------- toast / nav / clock ---------- */
+function flash(msg,color){ const o=$("#toast"); if(o)o.remove(); const t=el("div",null,msg); t.id="toast";
+  t.style.cssText=`position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:${color||"var(--brand)"};color:#fff;padding:11px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.25)`;
+  document.body.appendChild(t); setTimeout(()=>{ t.style.transition="opacity .3s"; t.style.opacity="0"; setTimeout(()=>t.remove(),300); },1500); }
+const ICONS={
+  mark:'<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  history:'<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/></svg>',
+  schedule:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+};
+const TABS=[["mark","Mark"],["history","History"],["schedule","Schedule"],["settings","Settings"]];
+function renderNav(){ const nav=$("#nav"); nav.innerHTML="";
+  TABS.forEach(([id,label])=>{ const b=el("button","tab"+(state.tab===id?" on":"")); b.innerHTML=`${ICONS[id]}<span>${label}</span><span class="ind"></span>`; b.onclick=()=>{ if(state.tab!==id){ state.tab=id; render(); } }; nav.appendChild(b); }); }
+function tickClock(){ const now=new Date(); const c=$("#clock"); if(c){ c.querySelector("b").textContent=tdisp(now); c.querySelector("span").textContent=fmtFull(now); } }
+
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.tab==="mark") render(); });
+setInterval(tickClock,15000);
+(async function init(){ await load(); render(); })();
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); }); }
+</script>
+</body>
+</html>
