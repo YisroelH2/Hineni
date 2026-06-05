@@ -73,6 +73,10 @@
   .exam-summary .es b{display:block;font-size:21px;font-weight:800;font-family:"Fraunces",serif;color:var(--ink);line-height:1.1}
   .exam-summary .es span{font-size:11px;color:var(--muted)}
   .grade-badge{flex:none;color:#fff;font-weight:800;font-size:13px;padding:6px 11px;border-radius:10px;white-space:nowrap}
+  .sheet-sub{font-size:13px;color:var(--muted);margin:-4px 0 14px;line-height:1.45}
+  .preset-card{border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;background:#fffdfe}
+  .pc-name{font-family:"Fraunces",serif;font-weight:600;font-size:16px;color:var(--brand-dark)}
+  .pc-meta{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.4}
 
   /* live mark card */
   .live{background:linear-gradient(160deg,#fff,#fff4f9);border:1px solid #fbe2ef}
@@ -265,6 +269,21 @@ const STATUS = {
 const ORDER = ["ontime","minor","major","absent","excused"];
 const ATTENDED = ["ontime","minor","major"]; // counts as "Existing"
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const SCHOOL_PRESETS=[{
+  id:"oholei-torah-daled",
+  name:"Oholei Torah — Shiur Daled",
+  note:"Nigleh A auto-shifts to 11:30 on Rosh Chodesh.",
+  classes:[
+    {name:"Chassidus Boker", days:[0,1,2,3,4], start:"07:30", dur:90},
+    {name:"Chassidus Boker", days:[5],          start:"08:00", dur:60},
+    {name:"Chassidus Boker", days:[6],          start:"08:00", dur:90},
+    {name:"Shacharis",       days:[0,1,2,3,4,5], start:"09:30", dur:60},
+    {name:"Nigleh A",        days:[0,1,2,3,4], start:"11:00", dur:195, rcStart:"11:30", rcDur:165},
+    {name:"Nigleh A",        days:[5],          start:"11:00", dur:120},
+    {name:"Girsa",           days:[0,1,2,3,4], start:"15:45", dur:135},
+    {name:"Chassidus Erev",  days:[0,1,2,3,4], start:"20:00", dur:90}
+  ]
+}];
 
 const DEFAULT_SETTINGS = {
   defLen:60, defThr:30,
@@ -328,6 +347,7 @@ function prevHebMonthInfo(date){
   if(!HEB){ const s=new Date(date.getFullYear(),date.getMonth()-1,1), e=new Date(date.getFullYear(),date.getMonth(),0); return {name:s.toLocaleDateString(undefined,{month:"long"}),start:s,end:e}; }
   return hebMonthInfo(new HEB.HDate(date).add(-1,"month").greg());
 }
+function isRoshChodesh(date){ if(!HEB) return false; try{ const d=new HEB.HDate(date).getDate(); return d===1||d===30; }catch(e){ return false; } }
 
 function classify(min,thr){ if(min<=0) return "ontime"; if(min<=thr) return "minor"; return "major"; }
 
@@ -351,11 +371,13 @@ function daysLabel(days){
 const sortedClasses = () => [...state.classes].sort((a,b)=> Math.min(...a.days)-Math.min(...b.days) || a.start.localeCompare(b.start));
 
 function sessionsOn(date){
-  const dow=date.getDay();
+  const dow=date.getDay(); const rc=isRoshChodesh(date);
   return sortedClasses().filter(c=>c.days.includes(dow)).map(c=>{
-    const [h,m]=c.start.split(":").map(Number);
+    const useStart=(rc&&c.rcStart)?c.rcStart:c.start;
+    const useDur=(rc&&c.rcStart)?(c.rcDur||c.dur):c.dur;
+    const [h,m]=useStart.split(":").map(Number);
     const start=new Date(date); start.setHours(h,m,0,0);
-    return {cls:c,start,end:new Date(start.getTime()+c.dur*60000)};
+    return {cls:c,start,end:new Date(start.getTime()+useDur*60000)};
   }).sort((a,b)=>a.start-b.start);
 }
 function currentContext(now){
@@ -672,7 +694,31 @@ function renderClassList(root){
     row.append(body,el("div","chev","›")); row.onclick=()=>openClassForm(c); root.appendChild(row);
   });
   const add=el("button","btn"); add.style.background="var(--brand)"; add.textContent="＋ Add a class"; add.onclick=()=>openClassForm(null); root.appendChild(add);
+  const tmpl=el("button","btn btn-ghost","📋 Load a school schedule"); tmpl.style.marginTop="10px"; tmpl.onclick=openSchoolPicker; root.appendChild(tmpl);
   root.appendChild(el("div","muted center",`<div style="font-size:12.5px;margin-top:14px;line-height:1.5">Classes auto-sort by day & time.<br>Different Friday/Shabbos time? Add a separate entry.</div>`));
+}
+async function loadSchoolPreset(preset,mode){
+  const built=preset.classes.map(c=>({id:uid(),name:c.name,days:[...c.days],start:c.start,dur:c.dur,thr:settings.defThr,...(c.rcStart?{rcStart:c.rcStart,rcDur:c.rcDur}:{})}));
+  state.classes = mode==="replace" ? built : [...state.classes,...built];
+  if(!settings.schoolName){ settings.schoolName=preset.name; await save("settings"); }
+  state.showBanner=false; await save("classes"); await Store.set("hineni_seeded","1"); scheduleAutoSync();
+}
+function openSchoolPicker(){
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,"School schedules"));
+    sh.appendChild(el("div","sheet-sub","Load a full seder schedule in one tap. You can edit any class afterward."));
+    SCHOOL_PRESETS.forEach(p=>{
+      const card=el("div","preset-card");
+      card.innerHTML=`<div class="pc-name">${esc(p.name)}</div><div class="pc-meta">${p.classes.length} classes${p.note?" · "+esc(p.note):""}</div>`;
+      const btns=el("div"); btns.style.cssText="display:flex;gap:8px;margin-top:11px";
+      const rep=el("button","btn-sm"); rep.style.cssText="background:var(--brand);color:#fff;flex:1"; rep.textContent="Replace my schedule";
+      rep.onclick=async()=>{ if(state.classes.length && !confirm(`Replace your current ${state.classes.length} class${state.classes.length>1?"es":""} with this schedule? (Past marks stay in History.)`)) return; await loadSchoolPreset(p,"replace"); closeSheet(); state.calMode="list"; render(); flash("Schedule loaded ✓","var(--ontime)"); };
+      const addb=el("button","btn-sm btn-ghost"); addb.style.flex="1"; addb.textContent="Add to mine";
+      addb.onclick=async()=>{ await loadSchoolPreset(p,"add"); closeSheet(); state.calMode="list"; render(); flash("Classes added ✓","var(--ontime)"); };
+      btns.append(rep,addb); card.appendChild(btns); sh.appendChild(card);
+    });
+    const A=el("div","sheet-actions"); const sp=el("div"); sp.style.flex="1"; const cn=el("button","btn-sm btn-ghost","Close"); cn.onclick=closeSheet; A.append(sp,cn); sh.appendChild(A);
+  });
 }
 function calendarEl(days,week){
   const H=(CAL.END-CAL.START)*CAL.PX;
@@ -966,6 +1012,18 @@ function openClassForm(existing,prefill){
     const fdur=el("div","field"); fdur.innerHTML=`<label>Length (min)</label>`; const dur=el("input"); dur.type="number"; dur.min=5; dur.value=c.dur; dur.inputMode="numeric"; fdur.appendChild(dur);
     r.append(fs,fdur); sh.appendChild(r);
     const fthr=el("div","field"); fthr.innerHTML=`<label>Minor-late cutoff (min)</label>`; const thr=el("input"); thr.type="number"; thr.min=0; thr.value=c.thr; thr.inputMode="numeric"; fthr.appendChild(thr); sh.appendChild(fthr);
+    let rcStart=null, rcDur=null, rcOn=false;
+    if(HEB){
+      rcOn=!!c.rcStart;
+      const frc=el("div","field");
+      const lbl=el("label"); lbl.style.cssText="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:600;color:var(--ink)";
+      const cb=el("input"); cb.type="checkbox"; cb.checked=rcOn; cb.style.cssText="width:18px;height:18px;accent-color:var(--brand)";
+      lbl.append(cb,document.createTextNode("Different time on Rosh Chodesh")); frc.appendChild(lbl);
+      const rcRow=el("div","row2"); rcRow.style.cssText="margin-top:10px;"+(rcOn?"":"display:none");
+      const frs=el("div","field"); frs.innerHTML=`<label>Rosh Chodesh start</label>`; rcStart=el("input"); rcStart.type="time"; rcStart.value=c.rcStart||c.start; frs.appendChild(rcStart);
+      const frd=el("div","field"); frd.innerHTML=`<label>R"Ch length (min)</label>`; rcDur=el("input"); rcDur.type="number"; rcDur.min=5; rcDur.value=c.rcDur||c.dur; rcDur.inputMode="numeric"; frd.appendChild(rcDur);
+      rcRow.append(frs,frd); cb.onchange=()=>{ rcOn=cb.checked; rcRow.style.display=rcOn?"grid":"none"; }; frc.appendChild(rcRow); sh.appendChild(frc);
+    }
     const A=el("div","sheet-actions");
     if(existing){ const del=el("button","link-danger","Delete"); del.onclick=async()=>{ if(confirm("Delete this class? Past marks stay in history.")){ state.classes=state.classes.filter(x=>x.id!==existing.id); await save("classes"); closeSheet(); render(); } }; A.appendChild(del); }
     const sp=el("div"); sp.style.flex="1"; A.appendChild(sp);
@@ -973,6 +1031,7 @@ function openClassForm(existing,prefill){
     const sv=el("button","btn-sm"); sv.style.cssText="background:var(--brand);color:#fff"; sv.textContent="Save";
     sv.onclick=async()=>{ const nm=name.value.trim(); if(!nm){name.focus();return;} if(!days.length){flash("Pick at least one day","var(--minor)");return;}
       const data={id:existing?existing.id:uid(),name:nm,days:[...days].sort((a,b)=>a-b),start:start.value,dur:Math.max(5,parseInt(dur.value)||60),thr:Math.max(0,parseInt(thr.value)||30)};
+      if(HEB && rcOn && rcStart){ data.rcStart=rcStart.value; data.rcDur=Math.max(5,parseInt(rcDur.value)||data.dur); }
       if(existing){ state.classes[state.classes.findIndex(x=>x.id===existing.id)]=data; } else state.classes.push(data);
       await save("classes"); closeSheet(); render(); };
     A.append(cn,sv); sh.appendChild(A);
