@@ -77,6 +77,10 @@
   .preset-card{border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;background:#fffdfe}
   .pc-name{font-family:"Fraunces",serif;font-weight:600;font-size:16px;color:var(--brand-dark)}
   .pc-meta{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .pc-links{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+  .pc-link{background:none;font-size:13px;font-weight:700;color:var(--brand);padding:0}
+  .pc-link.danger{color:var(--major)}
+  .pc-hint{font-size:11.5px;color:var(--muted);line-height:1.35;flex:1;min-width:140px}
 
   /* live mark card */
   .live{background:linear-gradient(160deg,#fff,#fff4f9);border:1px solid #fbe2ef}
@@ -133,14 +137,14 @@
   .cal-row{display:flex;background:#fff;border:1px solid #fbe9f2;border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
   .cal-gutter{flex:none;width:46px;position:relative;background:#fff;border-inline-end:1px solid var(--line)}
   .cal-gutter .hr{position:absolute;inset-inline-end:6px;font-size:10px;color:var(--muted);transform:translateY(-6px)}
-  .cal-cols{flex:1;display:flex;overflow-x:auto;scrollbar-width:none} .cal-cols::-webkit-scrollbar{display:none}
+  .cal-cols{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scrollbar-width:none} .cal-cols::-webkit-scrollbar{display:none}
   .cal-col{flex:1;min-width:0;border-inline-end:1px solid #f4e6ee;position:relative}
   .cal-cols.week .cal-col{flex:0 0 92px;min-width:92px}
   .cal-colhead{height:26px;display:flex;align-items:center;justify-content:center;background:#faf0f6;font-size:11px;font-weight:700;color:var(--brand-dark);border-bottom:1px solid var(--line)}
-  .cal-body{position:relative;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--hr) - 1px),#f3e7ee calc(var(--hr) - 1px),#f3e7ee var(--hr))}
-  .cal-block{position:absolute;inset-inline:4px;background:linear-gradient(160deg,#fbe1ef,#f8d2e6);border-inline-start:3px solid var(--brand);border-radius:9px;padding:4px 7px;overflow:hidden;cursor:pointer;box-shadow:0 2px 6px rgba(124,20,80,.18)}
-  .cal-block b{display:block;font-size:11.5px;color:var(--brand-dark);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cal-block span{font-size:10px;color:var(--brand-light);font-weight:600}
+  .cal-body{position:relative;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--hr) - 1px),#e9d2e0 calc(var(--hr) - 1px),#e9d2e0 var(--hr))}
+  .cal-block{position:absolute;inset-inline:4px;background:var(--brand);border-inline-start:3px solid rgba(0,0,0,.28);border-radius:9px;padding:4px 7px;overflow:hidden;cursor:pointer;box-shadow:0 3px 9px rgba(80,10,50,.3);color:#fff}
+  .cal-block b{display:block;font-size:11.5px;color:#fff;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-block span{font-size:10px;color:rgba(255,255,255,.85);font-weight:600}
   .cal-hint{text-align:center;font-size:12px;color:var(--muted);margin:10px 4px 0}
 
   /* sheet */
@@ -278,12 +282,24 @@ const SCHOOL_PRESETS=[{
     {name:"Chassidus Boker", days:[5],          start:"08:00", dur:60},
     {name:"Chassidus Boker", days:[6],          start:"08:00", dur:90},
     {name:"Shacharis",       days:[0,1,2,3,4,5], start:"09:30", dur:60},
-    {name:"Nigleh A",        days:[0,1,2,3,4], start:"11:00", dur:195, rcStart:"11:30", rcDur:165},
+    {name:"Nigleh A",        days:[0,2,3],       start:"11:00", dur:195, rcStart:"11:30", rcDur:165},
+    {name:"Nigleh A",        days:[1,4],         start:"11:10", dur:185, rcStart:"11:30", rcDur:165},
     {name:"Nigleh A",        days:[5],          start:"11:00", dur:120},
-    {name:"Girsa",           days:[0,1,2,3,4], start:"15:45", dur:135},
-    {name:"Chassidus Erev",  days:[0,1,2,3,4], start:"20:00", dur:90}
+    {name:"Girsa",           days:[0,1,2,3,4], start:"15:45", dur:195},
+    {name:"Chassidus Erev",  days:[0,1,2,3,4], start:"20:00", dur:90},
+    {name:"Dorm (curfew)",   days:[0,1,2,3,6], start:"23:45", dur:15}
   ]
 }];
+const CLASS_PALETTE=[
+  ["#a51c66","#7c1450"], ["#7c3aed","#5b21b6"], ["#2563eb","#1e40af"], ["#0d9488","#0f766e"],
+  ["#db2777","#9d174d"], ["#ea580c","#c2410c"], ["#4f46e5","#3730a3"], ["#0891b2","#0e7490"]
+];
+function classColor(name){
+  const names=[...new Set(sortedClasses().map(c=>c.name))];
+  let idx=names.indexOf(name);
+  if(idx<0){ let h=0; const s=name||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; idx=h; }
+  return CLASS_PALETTE[idx%CLASS_PALETTE.length];
+}
 
 const DEFAULT_SETTINGS = {
   defLen:60, defThr:30,
@@ -297,7 +313,7 @@ const DEFAULT_SETTINGS = {
 let settings = {...DEFAULT_SETTINGS};
 let state = { classes:[], marks:[], tab:"mark", period:"all", cFrom:"", cTo:"", histGroup:"day",
               calMode:"list", calDay:new Date().getDay(), showBanner:false,
-              journal:[], serverInfo:null, exams:[], examSubject:"all" };
+              journal:[], serverInfo:null, exams:[], examSubject:"all", presets:[] };
 let liveTimer = null;
 let autoSyncTimer = null;
 
@@ -434,6 +450,7 @@ async function save(what){
   if(!what||what==="classes") await Store.set("hineni_classes",JSON.stringify(state.classes));
   if(!what||what==="marks")   await Store.set("hineni_marks",JSON.stringify(state.marks));
   if(!what||what==="exams")   await Store.set("hineni_exams",JSON.stringify(state.exams));
+  if(!what||what==="presets") await Store.set("hineni_presets",JSON.stringify(state.presets));
   if(!what||what==="settings")await Store.set("hineni_settings",JSON.stringify(settings));
 }
 async function setExam(data){
@@ -464,6 +481,7 @@ async function load(){
   try{ state.marks=JSON.parse(await Store.get("hineni_marks"))||[]; }catch(e){ state.marks=[]; }
   try{ state.journal=JSON.parse(await Store.get("hineni_journal"))||[]; }catch(e){ state.journal=[]; }
   try{ state.exams=JSON.parse(await Store.get("hineni_exams"))||[]; }catch(e){ state.exams=[]; }
+  try{ state.presets=JSON.parse(await Store.get("hineni_presets"))||[]; }catch(e){ state.presets=[]; }
   state.marks.forEach(m=>{ if(m.status==="nomark"||m.status==="leftearly"){ m.status="ontime"; m.leftEarly=true; } }); // migrate v1/v2-early
   const seeded=await Store.get("hineni_seeded");
   if(!seeded && state.classes.length===0){
@@ -672,7 +690,7 @@ function summaryCard(name,recs,overall,cid){
 }
 
 /* ---------- SCHEDULE ---------- */
-const CAL={START:6*60,END:23*60,PX:0.9};
+const CAL={START:6*60,END:24*60,PX:0.9};
 function renderSchedule(root){
   root.appendChild(segmented(["list","day","week"],["List","Day","Week"],state.calMode,m=>{state.calMode=m;render();}));
   if(state.calMode==="list"){ renderClassList(root); return; }
@@ -687,7 +705,7 @@ function renderSchedule(root){
 function renderClassList(root){
   if(!state.classes.length) root.appendChild(el("div","card center muted","No classes yet. Add your first one below."));
   sortedClasses().forEach(c=>{
-    const row=el("div","cls"); row.append(el("div","accent"));
+    const row=el("div","cls"); const ac=el("div","accent"); ac.style.background=classColor(c.name)[0]; row.append(ac);
     const body=el("div"); body.style.flex="1";
     body.appendChild(el("div","nm",esc(c.name)));
     body.appendChild(el("div","sub",`${daysLabel(c.days)} · ${t12(c.start)} · ${c.dur} min · late >${c.thr}m`));
@@ -698,25 +716,89 @@ function renderClassList(root){
   root.appendChild(el("div","muted center",`<div style="font-size:12.5px;margin-top:14px;line-height:1.5">Classes auto-sort by day & time.<br>Different Friday/Shabbos time? Add a separate entry.</div>`));
 }
 async function loadSchoolPreset(preset,mode){
-  const built=preset.classes.map(c=>({id:uid(),name:c.name,days:[...c.days],start:c.start,dur:c.dur,thr:settings.defThr,...(c.rcStart?{rcStart:c.rcStart,rcDur:c.rcDur}:{})}));
+  const built=preset.classes.map(c=>({id:uid(),name:c.name,days:[...c.days],start:c.start,dur:c.dur,thr:(c.thr!=null?c.thr:settings.defThr),...(c.rcStart?{rcStart:c.rcStart,rcDur:c.rcDur}:{})}));
   state.classes = mode==="replace" ? built : [...state.classes,...built];
-  if(!settings.schoolName){ settings.schoolName=preset.name; await save("settings"); }
+  if(!settings.schoolName && !preset.custom){ settings.schoolName=preset.name; await save("settings"); }
   state.showBanner=false; await save("classes"); await Store.set("hineni_seeded","1"); scheduleAutoSync();
+}
+async function saveCurrentAsPreset(){
+  if(!state.classes.length){ flash("Add some classes first","var(--minor)"); return; }
+  const nm=(prompt("Name this schedule:", settings.schoolName||"My schedule")||"").trim();
+  if(!nm) return;
+  const snap=state.classes.map(c=>({name:c.name,days:[...c.days],start:c.start,dur:c.dur,thr:c.thr,...(c.rcStart?{rcStart:c.rcStart,rcDur:c.rcDur}:{})}));
+  const i=state.presets.findIndex(p=>p.name.toLowerCase()===nm.toLowerCase());
+  if(i>=0){ if(!confirm(`Update "${nm}" with your current ${snap.length} classes?`)) return; state.presets[i]={...state.presets[i],classes:snap}; }
+  else state.presets.push({id:"p"+uid(),name:nm,custom:true,classes:snap});
+  await save("presets"); scheduleAutoSync(); closeSheet(); openSchoolPicker(); flash("Saved ✓","var(--ontime)");
+}
+async function renamePreset(p){
+  const nm=(prompt("Rename schedule:",p.name)||"").trim(); if(!nm) return;
+  p.name=nm; await save("presets"); closeSheet(); openSchoolPicker();
+}
+async function deletePreset(p){
+  if(!confirm(`Delete the saved schedule "${p.name}"? (Your current classes aren't affected.)`)) return;
+  state.presets=state.presets.filter(x=>x.id!==p.id); await save("presets"); scheduleAutoSync(); closeSheet(); openSchoolPicker();
+}
+async function sharePreset(p){
+  const code="HINENI-SCHEDULE::"+btoa(unescape(encodeURIComponent(JSON.stringify({name:p.name,classes:p.classes}))));
+  if(navigator.share){ try{ await navigator.share({title:"Hineni schedule: "+p.name,text:code}); return; }catch(e){ if(e.name==="AbortError") return; } }
+  try{ await navigator.clipboard.writeText(code); flash("Schedule code copied","var(--ontime)"); }catch(e){ prompt("Copy this schedule code:",code); }
+}
+function openImportPreset(){
+  openSheet(sh=>{
+    sh.appendChild(el("h3",null,"Import a schedule"));
+    sh.appendChild(el("div","sheet-sub","Paste a schedule code someone shared with you."));
+    const f=el("div","field"); const ta=el("textarea"); ta.rows=4; ta.placeholder="HINENI-SCHEDULE::…"; ta.style.cssText="width:100%;font-size:13px;font-family:monospace;padding:10px;border:1.5px solid var(--line);border-radius:12px;resize:vertical"; f.appendChild(ta); sh.appendChild(f);
+    const A=el("div","sheet-actions"); const sp=el("div"); sp.style.flex="1";
+    const cn=el("button","btn-sm btn-ghost","Cancel"); cn.onclick=()=>{ closeSheet(); openSchoolPicker(); };
+    const imp=el("button","btn-sm"); imp.style.cssText="background:var(--brand);color:#fff"; imp.textContent="Import";
+    imp.onclick=async()=>{
+      try{
+        const obj=JSON.parse(decodeURIComponent(escape(atob(ta.value.trim().replace(/^HINENI-SCHEDULE::/,"")))));
+        if(!obj.classes||!Array.isArray(obj.classes)||!obj.classes.length) throw 0;
+        let nm=(obj.name||"Imported schedule").trim(); if(state.presets.some(p=>p.name===nm)) nm+=" (imported)";
+        state.presets.push({id:"p"+uid(),name:nm,custom:true,classes:obj.classes});
+        await save("presets"); scheduleAutoSync(); closeSheet(); openSchoolPicker(); flash("Schedule imported ✓","var(--ontime)");
+      }catch(e){ flash("That code didn't work","var(--major)"); }
+    };
+    A.append(sp,cn,imp); sh.appendChild(A);
+  });
+}
+function presetCard(p){
+  const card=el("div","preset-card");
+  const head=el("div"); head.style.cssText="display:flex;align-items:flex-start;gap:8px";
+  const info=el("div"); info.style.flex="1";
+  info.innerHTML=`<div class="pc-name">${esc(p.name)}</div><div class="pc-meta">${p.classes.length} classes${p.note?" · "+esc(p.note):p.custom?" · your schedule":""}</div>`;
+  head.appendChild(info); card.appendChild(head);
+  const btns=el("div"); btns.style.cssText="display:flex;gap:8px;margin-top:11px";
+  const rep=el("button","btn-sm"); rep.style.cssText="background:var(--brand);color:#fff;flex:1"; rep.textContent="Replace schedule";
+  rep.onclick=async()=>{ if(state.classes.length && !confirm(`Replace your current ${state.classes.length} class${state.classes.length>1?"es":""} with this? (Past marks stay in History.)`)) return; await loadSchoolPreset(p,"replace"); closeSheet(); state.calMode="list"; render(); flash("Schedule loaded ✓","var(--ontime)"); };
+  const addb=el("button","btn-sm btn-ghost"); addb.style.flex="1"; addb.textContent="Add to mine";
+  addb.onclick=async()=>{ await loadSchoolPreset(p,"add"); closeSheet(); state.calMode="list"; render(); flash("Classes added ✓","var(--ontime)"); };
+  btns.append(rep,addb); card.appendChild(btns);
+  const links=el("div","pc-links");
+  if(p.custom){
+    const rn=el("button","pc-link","Rename"); rn.onclick=()=>renamePreset(p);
+    const sh=el("button","pc-link","Share"); sh.onclick=()=>sharePreset(p);
+    const dl=el("button","pc-link danger","Delete"); dl.onclick=()=>deletePreset(p);
+    links.append(rn,sh,dl);
+  } else {
+    const sh=el("button","pc-link","Share"); sh.onclick=()=>sharePreset(p);
+    links.append(sh);
+    const hint=el("span","pc-hint","Load it, edit any class, then “Save current schedule” to keep your version");
+    links.appendChild(hint);
+  }
+  card.appendChild(links);
+  return card;
 }
 function openSchoolPicker(){
   openSheet(sh=>{
-    sh.appendChild(el("h3",null,"School schedules"));
-    sh.appendChild(el("div","sheet-sub","Load a full seder schedule in one tap. You can edit any class afterward."));
-    SCHOOL_PRESETS.forEach(p=>{
-      const card=el("div","preset-card");
-      card.innerHTML=`<div class="pc-name">${esc(p.name)}</div><div class="pc-meta">${p.classes.length} classes${p.note?" · "+esc(p.note):""}</div>`;
-      const btns=el("div"); btns.style.cssText="display:flex;gap:8px;margin-top:11px";
-      const rep=el("button","btn-sm"); rep.style.cssText="background:var(--brand);color:#fff;flex:1"; rep.textContent="Replace my schedule";
-      rep.onclick=async()=>{ if(state.classes.length && !confirm(`Replace your current ${state.classes.length} class${state.classes.length>1?"es":""} with this schedule? (Past marks stay in History.)`)) return; await loadSchoolPreset(p,"replace"); closeSheet(); state.calMode="list"; render(); flash("Schedule loaded ✓","var(--ontime)"); };
-      const addb=el("button","btn-sm btn-ghost"); addb.style.flex="1"; addb.textContent="Add to mine";
-      addb.onclick=async()=>{ await loadSchoolPreset(p,"add"); closeSheet(); state.calMode="list"; render(); flash("Classes added ✓","var(--ontime)"); };
-      btns.append(rep,addb); card.appendChild(btns); sh.appendChild(card);
-    });
+    sh.appendChild(el("h3",null,"Schedules"));
+    sh.appendChild(el("div","sheet-sub","Load a full seder schedule in one tap, or save your own. Editing is just: load → tweak classes → save."));
+    SCHOOL_PRESETS.forEach(p=>sh.appendChild(presetCard(p)));
+    if(state.presets.length){ sh.appendChild(el("div","sec-title","Your schedules")); state.presets.forEach(p=>sh.appendChild(presetCard(p))); }
+    const save1=el("button","btn"); save1.style.cssText="background:var(--brand);color:#fff;margin-top:6px"; save1.textContent="💾 Save current schedule as a preset"; save1.onclick=saveCurrentAsPreset; sh.appendChild(save1);
+    const imp=el("button","btn btn-ghost","📥 Import a shared schedule"); imp.style.marginTop="9px"; imp.onclick=()=>{ closeSheet(); openImportPreset(); }; sh.appendChild(imp);
     const A=el("div","sheet-actions"); const sp=el("div"); sp.style.flex="1"; const cn=el("button","btn-sm btn-ghost","Close"); cn.onclick=closeSheet; A.append(sp,cn); sh.appendChild(A);
   });
 }
@@ -733,6 +815,7 @@ function calendarEl(days,week){
     sortedClasses().filter(c=>c.days.includes(dow)).forEach(c=>{
       const [h,mm]=c.start.split(":").map(Number); const sMin=h*60+mm;
       const b=el("div","cal-block"); b.style.top=Math.max(0,(sMin-CAL.START)*CAL.PX)+"px"; b.style.height=Math.max(18,c.dur*CAL.PX)+"px";
+      const cc=classColor(c.name); b.style.background=`linear-gradient(160deg,${cc[0]},${cc[1]})`; b.style.borderInlineStartColor=cc[1];
       b.innerHTML=`<b>${esc(c.name)}</b><span>${t12(c.start)}</span>`;
       b.onclick=ev=>{ ev.stopPropagation(); openClassForm(c); }; body.appendChild(b);
     });
@@ -1209,7 +1292,7 @@ function openReport(){
 /* ---------- backup: export / import ---------- */
 function exportData(){
   try{
-    const data={app:"hineni",version:2,exportedAt:new Date().toISOString(),settings,classes:state.classes,marks:state.marks,exams:state.exams};
+    const data={app:"hineni",version:2,exportedAt:new Date().toISOString(),settings,classes:state.classes,marks:state.marks,exams:state.exams,presets:state.presets};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download=`hineni-backup-${dkey(new Date())}.json`;
@@ -1232,6 +1315,7 @@ function importData(){
         state.classes=Array.isArray(d.classes)?d.classes:[];
         state.marks=Array.isArray(d.marks)?d.marks:[];
         state.exams=Array.isArray(d.exams)?d.exams:[];
+        if(Array.isArray(d.presets)) state.presets=d.presets;
         state.marks.forEach(m=>{ if(m.status==="nomark"||m.status==="leftearly"){ m.status="ontime"; m.leftEarly=true; } });
         await save(); await Store.set("hineni_seeded","1"); render(); flash("Backup restored","var(--ontime)");
       }catch(e){ alert("That doesn't look like a Hineni backup file."); }
